@@ -1,8 +1,10 @@
 import cv2
 from core.pose_engine import PoseEngine
+from utils.keypoint_saver import KeypointSaver
 
-# Initialize engine
+# Initialize
 engine = PoseEngine()
+saver = KeypointSaver()
 
 # Open webcam
 cap = cv2.VideoCapture(0)
@@ -17,10 +19,8 @@ while cap.isOpened():
     # Process frame
     frame, keypoints = engine.process_frame(frame)
 
-    # Print keypoints with good confidence
-    for kp in keypoints:
-        if kp["confidence"] > 0.5:
-            print(f"{kp['name']}: x={kp['x']}, y={kp['y']}")
+    # Save keypoints
+    saver.save_frame(keypoints)
 
     # Show frame
     cv2.imshow("PoseSense - Live Pose Detection", frame)
@@ -28,6 +28,8 @@ while cap.isOpened():
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+# Cleanup
 cap.release()
 cv2.destroyAllWindows()
+saver.finish()
 print("PoseSense stopped.")
