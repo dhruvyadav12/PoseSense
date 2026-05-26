@@ -2,123 +2,117 @@ import numpy as np
 
 class ContextClassifier:
     """
-    Analyzes pose keypoints to determine the context/environment.
-    Uses rule-based logic - no training data needed.
+    Context-aware environment classifier for PoseSense.
+    Uses rule-based pose analysis.
     """
 
     def __init__(self):
         self.context_history = []
-        self.history_size = 30  # Smooth over 30 frames
+        self.history_size = 30
+
+        print("ContextClassifier initialized!")
 
     def classify(self, keypoints):
-        """Main method - takes keypoints, returns context label."""
+
         if not keypoints:
             return "unknown"
 
-        # Convert list to dict for easy lookup
+        # Convert list → dictionary
         kp = {k["name"]: k for k in keypoints}
 
-        # Run all checks
-        person_count_score = self._check_visibility(kp)
-        is_sitting = self._check_sitting(kp)
-        arms_raised = self._check_arms_raised(kp)
-        is_moving = self._check_movement(kp)
-        upper_body_only = self._check_upper_body_only(kp)
+        # Run checks
+        sitting = self._is_sitting(kp)
+        arms_raised = self._arms_raised(kp)
+        active_motion = self._active_motion(kp)
+        upper_body_only = self._upper_body_only(kp)
 
         # Decision logic
-        context = self._decide_context(
-            person_count_score,
-            is_sitting,
-            arms_raised,
-            is_moving,
-            upper_body_only
-        )
+        if arms_raised and active_motion:
+            context = "gym"
 
-        # Smooth the result using history
+        elif sitting and upper_body_only:
+            context = "office"
+
+        elif sitting:
+            context = "home"
+
+        elif active_motion:
+            context = "active"
+
+        else:
+            context = "standing"
+
+        # Smooth predictions
         self.context_history.append(context)
+
         if len(self.context_history) > self.history_size:
             self.context_history.pop(0)
 
-        return self._get_stable_context()
+        return self._stable_prediction()
 
-    def _check_visibility(self, kp):
-        """How many key body parts are visible with high confidence?"""
-        important_parts = [
-            "nose", "left_shoulder", "right_shoulder",
-            "left_hip", "right_hip"
+    def _is_sitting(self, kp):
+
+        try:
+            shoulder_y = kp["left_shoulder"]["y"]
+            hip_y = kp["left_hip"]["y"]
+
+            return abs(hip_y - shoulder_y) < 150
+
+        except KeyError:
+            return False
+
+    def _arms_raised(self, kp):
+
+        try:
+            left_wrist = kp["left_wrist"]["y"]
+            left_shoulder = kp["left_shoulder"]["y"]
+
+            right_wrist = kp["right_wrist"]["y"]
+            right_shoulder = kp["right_shoulder"]["y"]
+
+            return (
+                left_wrist < left_shoulder or
+                right_wrist < right_shoulder
+            )
+
+        except KeyError:
+            return False
+
+    def _active_motion(self, kp):
+
+        try:
+            wrist_y = kp["left_wrist"]["y"]
+            hip_y = kp["left_hip"]["y"]
+
+            return abs(wrist_y - hip_y) > 200
+
+        except KeyError:
+            return False
+
+    def _upper_body_only(self, kp):
+
+        lower_parts = [
+            "left_knee",
+            "right_knee",
+            "left_ankle",
+            "right_ankle"
         ]
-        visible = sum(
-            1 for part in important_parts
-            if part in kp and kp[part]["confidence"] > 0.5
+
+        missing = 0
+
+        for part in lower_parts:
+
+            if (
+                part not in kp or
+                kp[part]["confidence"] < 0.3
+            ):
+                missing += 1
+
+        return missing >= 3
+
+    def _stable_prediction(self):
+
+        return max(
+            set(self.context_history),
+            key=self.context_history.count
         )
-        return visible / len(important_parts)
-
-    def _check_sitting(self, kp):
-        """Is the person sitting? Hip y-position close to shoulder y-position."""
-        try:
-            left_shoulder_y = kp["left_shoulder"]["y"]
-            left_hip_y = kp["left_hip"]["y"]
-            vertical_distance = abs(left_hip_y - left_shoulder_y)
-            # If hips and shoulders are close vertically, likely sitting
-            return vertical_distance < 150
-        except KeyError:
-            return False
-
-    def _check_arms_raised(self, kp):
-        """Are arms raised above shoulders? Suggests exercise."""
-        try:
-            left_shoulder_y = kp["left_shoulder"]["y"]
-            right_shoulder_y = kp["right_shoulder"]["y"]
-            left_wrist_y = kp["left_wrist"]["y"]
-            right_wrist_y = kp["right_wrist"]["y"]
-
-            left_raised = left_wrist_y < left_shoulder_y
-            right_raised = right_wrist_y < right_shoulder_y
-            return left_raised or right_raised
-        except KeyError:
-            return False
-
-    def _check_movement(self, kp):
-        """Simple proxy: are wrists far from hips? Suggests active movement."""
-        try:
-            left_hip_y = kp["left_hip"]["y"]
-            left_wrist_y = kp["left_wrist"]["y"]
-            distance = abs(left_wrist_y - left_hip_y)
-            return distance > 200
-        except KeyError:
-            return False
-
-    def _check_upper_body_only(self, kp):
-        """Are legs invisible? Suggests desk/seated work."""
-        lower_body = ["left_knee", "right_knee", "left_ankle", "right_ankle"]
-        low_confidence = sum(
-            1 for part in lower_body
-            if part in kp and kp[part]["confidence"] < 0.3
-        )
-        return low_confidence >= 3
-
-    def _decide_context(self, visibility, sitting, arms_raised, moving, upper_body_only):
-        """Rule-based decision tree."""
-
-        if visibility < 0.4:
-            return "unknown"
-
-        if arms_raised and moving:
-            return "gym"
-
-        if sitting and upper_body_only:
-            return "office"
-
-        if sitting and not upper_body_only:
-            return "home"
-
-        if not sitting and not arms_raised:
-            return "standing"
-
-        return "active"
-
-    def _get_stable_context(self):
-        """Return the most common context from recent history."""
-        if not self.context_history:
-            return "unknown"
-        return max(set(self.context_history), key=self.context_history.count)
