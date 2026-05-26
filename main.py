@@ -30,7 +30,10 @@ while cap.isOpened():
     # Detect context
     context = classifier.classify(keypoints)
 
-    # Draw context label on screen
+    # Get stability
+    stability = classifier.get_stability()
+
+    # Context label
     cv2.putText(
         frame,
         f"Context: {context}",
@@ -38,6 +41,28 @@ while cap.isOpened():
         cv2.FONT_HERSHEY_SIMPLEX,
         1,
         (0, 255, 0),
+        2
+    )
+
+    # Stability label
+    cv2.putText(
+        frame,
+        f"Stability: {stability}",
+        (20, 80),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (255, 255, 0),
+        2
+    )
+
+    # Frame counter
+    cv2.putText(
+        frame,
+        f"Frames: {classifier.frame_counter}",
+        (20, 120),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (255, 255, 255),
         2
     )
 

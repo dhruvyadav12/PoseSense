@@ -7,8 +7,10 @@ class ContextClassifier:
     """
 
     def __init__(self):
+
         self.context_history = []
         self.history_size = 30
+        self.frame_counter = 0
 
         print("ContextClassifier initialized!")
 
@@ -41,6 +43,9 @@ class ContextClassifier:
 
         else:
             context = "standing"
+
+        # Frame counter
+        self.frame_counter += 1
 
         # Smooth predictions
         self.context_history.append(context)
@@ -116,3 +121,26 @@ class ContextClassifier:
             set(self.context_history),
             key=self.context_history.count
         )
+
+    def get_stability(self):
+
+        if not self.context_history:
+            return "Low"
+
+        most_common = max(
+            set(self.context_history),
+            key=self.context_history.count
+        )
+
+        consistency = (
+            self.context_history.count(most_common)
+            / len(self.context_history)
+        )
+
+        if consistency > 0.8:
+            return "High"
+
+        elif consistency > 0.5:
+            return "Medium"
+
+        return "Low"
