@@ -32,6 +32,10 @@ while cap.isOpened():
 
     # Get stability
     stability = classifier.get_stability()
+        # Motion level
+    motion = classifier.get_motion_level(
+        {k["name"]: k for k in keypoints}
+    )
 
     # Context label
     cv2.putText(
@@ -54,12 +58,22 @@ while cap.isOpened():
         (255, 255, 0),
         2
     )
+        # Motion label
+    cv2.putText(
+        frame,
+        f"Motion: {motion}",
+        (20, 120),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (0, 165, 255),
+        2
+    )
 
     # Frame counter
     cv2.putText(
         frame,
         f"Frames: {classifier.frame_counter}",
-        (20, 120),
+        (20, 160),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.8,
         (255, 255, 255),

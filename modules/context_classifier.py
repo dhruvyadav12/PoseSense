@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class ContextClassifier:
     """
     Context-aware environment classifier for PoseSense.
@@ -11,6 +12,10 @@ class ContextClassifier:
         self.context_history = []
         self.history_size = 30
         self.frame_counter = 0
+
+        # Motion tracking
+        self.previous_wrist_y = None
+        self.motion_score = 0
 
         print("ContextClassifier initialized!")
 
@@ -144,3 +149,35 @@ class ContextClassifier:
             return "Medium"
 
         return "Low"
+
+    def get_motion_level(self, kp):
+
+        try:
+            current_wrist_y = kp["left_wrist"]["y"]
+
+            # First frame
+            if self.previous_wrist_y is None:
+                self.previous_wrist_y = current_wrist_y
+                return "Low"
+
+            # Calculate movement
+            movement = abs(
+                current_wrist_y - self.previous_wrist_y
+            )
+
+            self.motion_score = movement
+
+            # Update previous frame
+            self.previous_wrist_y = current_wrist_y
+
+            # Motion classification
+            if movement > 80:
+                return "High"
+
+            elif movement > 40:
+                return "Medium"
+
+            return "Low"
+
+        except KeyError:
+            return "Low"
