@@ -3,11 +3,13 @@ import cv2
 from core.pose_engine import PoseEngine
 from utils.keypoint_saver import KeypointSaver
 from modules.context_classifier import ContextClassifier
+from modules.fall_detector import FallDetector
 
 # Initialize systems
 engine = PoseEngine()
 saver = KeypointSaver()
 classifier = ContextClassifier()
+fall_detector = FallDetector()
 
 # Open webcam
 cap = cv2.VideoCapture(0)
@@ -36,6 +38,8 @@ while cap.isOpened():
     motion = classifier.get_motion_level(
         {k["name"]: k for k in keypoints}
     )
+    # Fall detection
+    fall_detected = fall_detector.detect(keypoints, motion)
 
     # Context label
     cv2.putText(
@@ -79,6 +83,17 @@ while cap.isOpened():
         (255, 255, 255),
         2
     )
+    # Fall alert
+    if fall_detected:
+        cv2.putText(
+            frame,
+            "ALERT: POSSIBLE FALL DETECTED",
+            (20, 220),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 0, 255),
+            3
+        )
 
     # Show webcam feed
     cv2.imshow(
